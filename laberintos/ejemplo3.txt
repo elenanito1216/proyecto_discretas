@@ -1,0 +1,10 @@
+# Laberinto 3: Demostracion de diferencia entre BFS y DFS
+# BFS toma el camino directo a la derecha (3 pasos hasta la meta)
+# DFS toma el camino largo hacia abajo recorriendo todo el circuito (9 pasos)
+1 1 1 1 1 1 1
+1 0 0 0 1 1 1
+1 0 1 0 1 1 1
+1 0 1 0 1 1 1
+1 0 1 0 1 1 1
+1 0 0 0 1 1 1
+1 1 1 1 1 1 1
