@@ -1,31 +1,10 @@
-"""
-interfaz.py
------------
-Interfaz gráfica para el Solucionador de Laberintos en Python con Tkinter.
-Diseño: 'Cyberpunk / Night Navigation Grid'
-
-Características:
-- Efecto Glow (brillo simulado multi-capa mediante 'mezclar_colores').
-- Propagación de señal en red de árbol para el Algoritmo de Dijkstra.
-- Trazado progresivo de la ruta óptima final con destello de llegada.
-- Inicio y Meta con halos concéntricos y animación de pulso continuo.
-- Telemetría en vivo durante la exploración.
-"""
-
 import ctypes
 import math
 import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
-# ------------------------------------------------------------------------------
-# CONFIGURACIÓN HIGH-DPI (NITIDEZ ULTRA EN WINDOWS)
-# ------------------------------------------------------------------------------
 def configurar_alta_resolucion():
-    """
-    Activa el soporte nativo de Alta Resolución (DPI Awareness) en Windows
-    para evitar que el sistema operativo escale la ventana con filtro borroso.
-    """
     if sys.platform == "win32":
         try:
             ctypes.windll.shcore.SetProcessDpiAwareness(1)
@@ -46,31 +25,20 @@ from laberinto import (
 from algoritmos import dijkstra
 from imagen_a_matriz import DialogoPrevisualizacionImagen
 
-
-# ==============================================================================
-# CONFIGURACIÓN DE TEMA Y PALETA NEÓN
-# ==============================================================================
 TEMA = {
-    # Fondos y paneles
-    "fondo_general": "#070B14",       # Azul casi negro ultra oscuro
-    "panel": "#0D1424",               # Panel contenedor azul noche
-    "panel_borde": "#18243D",         # Borde tenue para recuadros
-    "terminal_fondo": "#05080F",      # Fondo negro profundo de la terminal
-
-    # Red de calles (Laberinto)
-    "calle_fondo": "#121A2C",         # Gris azulado tenue para caminos libres
-    "calle_borde": "#1C2740",         # Línea sutil de demarcación de calle
-    "pared_fondo": "#070B14",         # Paredes fundidas con el fondo general
-    "pared_borde": "#0C1322",         # Borde muy sutil para insinuar masa
-
-    # Paleta Neón
-    "neon_cian": "#00E5FF",           # Dijkstra y propagación de señal
-    "neon_magenta": "#FF2BD6",        # Nodo Meta
-    "neon_verde": "#39FF14",          # Nodo Inicio
-    "neon_ambar": "#FFB300",          # Ruta final optimizada / Reinicio
-    "neon_azul": "#00B0FF",           # Archivos y datos
-
-    # Tipografía
+    "fondo_general": "#070B14",
+    "panel": "#0D1424",
+    "panel_borde": "#18243D",
+    "terminal_fondo": "#05080F",
+    "calle_fondo": "#121A2C",
+    "calle_borde": "#1C2740",
+    "pared_fondo": "#070B14",
+    "pared_borde": "#0C1322",
+    "neon_cian": "#00E5FF",
+    "neon_magenta": "#FF2BD6",
+    "neon_verde": "#39FF14",
+    "neon_ambar": "#FFB300",
+    "neon_azul": "#00B0FF",
     "texto_principal": "#E0E6ED",
     "texto_secundario": "#7A8C9E",
     "fuente_cyber": ("Segoe UI", 9, "bold"),
@@ -79,14 +47,7 @@ TEMA = {
     "fuente_terminal_bold": ("Consolas", 9, "bold")
 }
 
-
 def mezclar_colores(color1_hex, color2_hex, factor=0.5):
-    """
-    Mezcla dos colores hexadecimales (#RRGGBB).
-    factor = 0.0 -> color1_hex puro.
-    factor = 1.0 -> color2_hex puro.
-    Calcula los tonos intermedios para simular el brillo (glow) en 3 capas.
-    """
     c1 = color1_hex.lstrip('#')
     c2 = color2_hex.lstrip('#')
 
@@ -101,13 +62,7 @@ def mezclar_colores(color1_hex, color2_hex, factor=0.5):
 
     return f"#{r:02x}{g:02x}{b:02x}".upper()
 
-
 def deducir_padres_arbol(grafo, orden_visita, inicio):
-    """
-    Determina la relación padre -> hijo para cada nodo de la exploración de Dijkstra.
-    Permite dibujar las aristas del árbol que se expande por las calles.
-    Optimizado en O(V) mediante índice de visita y vecinos adyacentes.
-    """
     if not orden_visita:
         return {inicio: None}
 
@@ -125,10 +80,6 @@ def deducir_padres_arbol(grafo, orden_visita, inicio):
 
     return padres
 
-
-# ==============================================================================
-# COMPONENTE: BOTÓN NEÓN PERSONALIZADO
-# ==============================================================================
 class BotonNeon(tk.Frame):
     def __init__(self, parent, texto, color_neon, comando, font=None, icono="", **kwargs):
         super().__init__(parent, bg=color_neon, bd=1, relief=tk.FLAT, **kwargs)
@@ -171,10 +122,6 @@ class BotonNeon(tk.Frame):
         if self.comando:
             self.comando()
 
-
-# ==============================================================================
-# CLASE PRINCIPAL: APLICACIÓN DEL LABERINTO
-# ==============================================================================
 class InterfazLaberinto:
     def __init__(self, ventana):
         self.ventana = ventana
@@ -183,32 +130,26 @@ class InterfazLaberinto:
         self.ventana.minsize(940, 660)
         self.ventana.configure(bg=TEMA["fondo_general"])
 
-        # Estado del laberinto
         self.matriz = []
         self.grafo = {}
         self.inicio = (1, 1)
         self.meta = (5, 5)
 
-        # Referencias para animación
         self.animacion_id = None
         self.pulso_id = None
         self.esta_animando = False
         self.fase_pulso = 0.0
 
-        # Dimensiones del lienzo principal
         self.ancho_canvas = 580
         self.alto_canvas = 580
         self.tamano_celda = 20
         self.margen_x = 0
         self.margen_y = 0
 
-        # Construcción visual
         self._crear_diseno()
 
-        # Protocolo de cierre limpio de ventana
         self.ventana.protocol("WM_DELETE_WINDOW", self._al_cerrar)
 
-        # Cargar laberinto inicial y activar bucle de pulso
         self._cargar_laberinto_inicial()
         self._iniciar_bucle_pulso()
 
@@ -222,7 +163,6 @@ class InterfazLaberinto:
         self.ventana.destroy()
 
     def _crear_diseno(self):
-        # 1. ENCABEZADO SUPERIOR
         encabezado = tk.Frame(
             self.ventana,
             bg=TEMA["panel"],
@@ -251,11 +191,9 @@ class InterfazLaberinto:
         )
         lbl_sub.pack(side=tk.RIGHT, padx=15)
 
-        # CONTENEDOR PRINCIPAL
         cuerpo = tk.Frame(self.ventana, bg=TEMA["fondo_general"])
         cuerpo.pack(fill=tk.BOTH, expand=True, padx=15, pady=(0, 10))
 
-        # ------------------ PANEL IZQUIERDO: LIENZO (CANVAS) ------------------
         panel_izq = tk.Frame(cuerpo, bg=TEMA["fondo_general"])
         panel_izq.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -277,10 +215,8 @@ class InterfazLaberinto:
         )
         self.canvas.pack()
 
-        # Leyenda neón
         self._crear_leyenda(panel_izq)
 
-        # ------------------ PANEL DERECHO: CONTROLES ------------------
         panel_der = tk.Frame(
             cuerpo,
             bg=TEMA["panel"],
@@ -290,7 +226,6 @@ class InterfazLaberinto:
         )
         panel_der.pack(side=tk.RIGHT, fill=tk.Y, padx=(12, 0), ipadx=8, ipady=6)
 
-        # --- SECCIÓN: ALGORITMOS ---
         self._crear_seccion_titulo(panel_der, "MODO DE RESOLUCIÓN")
 
         BotonNeon(
@@ -309,7 +244,6 @@ class InterfazLaberinto:
             icono="↺"
         ).pack(fill=tk.X, padx=10, pady=(0, 8))
 
-        # --- SECCIÓN: ORIGEN DEL LABERINTO ---
         self._crear_seccion_titulo(panel_der, "ORIGEN DE DATOS")
 
         BotonNeon(
@@ -320,7 +254,6 @@ class InterfazLaberinto:
             icono="📁"
         ).pack(fill=tk.X, padx=10, pady=(3, 3))
 
-        # Selector de escala para laberinto aleatorio
         f_tam = tk.Frame(panel_der, bg=TEMA["panel"])
         f_tam.pack(fill=tk.X, padx=10, pady=(3, 2))
 
@@ -378,7 +311,6 @@ class InterfazLaberinto:
             icono="📷"
         ).pack(fill=tk.X, padx=10, pady=(0, 8))
 
-        # --- SECCIÓN: CONTROL DE VELOCIDAD ---
         self._crear_seccion_titulo(panel_der, "VELOCIDAD DE SEÑAL")
 
         marco_slider = tk.Frame(
@@ -416,7 +348,6 @@ class InterfazLaberinto:
         )
         lbl_ms.pack(pady=(0, 2))
 
-        # --- SECCIÓN: MONITOR DE TELEMETRÍA (TERMINAL) ---
         self._crear_seccion_titulo(panel_der, "SYS.LOG // RESULTADOS")
 
         terminal = tk.Frame(
@@ -494,23 +425,12 @@ class InterfazLaberinto:
         _badge("RUTA", TEMA["neon_ambar"], TEMA["neon_ambar"])
         _badge("CALLE", TEMA["texto_secundario"], TEMA["calle_fondo"])
 
-    # ==========================================================================
-    # CÁLCULO DE COORDENADAS DE PANTALLA
-    # ==========================================================================
     def centro_celda(self, f, c):
-        """Retorna las coordenadas pixel (x, y) del centro de una celda."""
         cx = self.margen_x + (c * self.tamano_celda) + (self.tamano_celda / 2)
         cy = self.margen_y + (f * self.tamano_celda) + (self.tamano_celda / 2)
         return cx, cy
 
-    # ==========================================================================
-    # DIBUJO DEL LABERINTO
-    # ==========================================================================
     def dibujar_laberinto(self):
-        """
-        Dibuja la cuadrícula como red de calles nocturna:
-        Paredes en negro profundo y calles en azul grafito sutil.
-        """
         self.canvas.delete("all")
 
         if not self.matriz:
@@ -523,7 +443,6 @@ class InterfazLaberinto:
         self.margen_x = (self.ancho_canvas - (columnas * self.tamano_celda)) // 2
         self.margen_y = (self.alto_canvas - (filas * self.tamano_celda)) // 2
 
-        # 1. Dibujar celdas base
         for f in range(filas):
             for c in range(columnas):
                 x1 = self.margen_x + (c * self.tamano_celda)
@@ -546,21 +465,17 @@ class InterfazLaberinto:
                     tags="base_grid"
                 )
 
-        # 2. Dibujar nodos de Inicio y Meta con sus halos
         self._dibujar_halos_inicio_meta()
 
     def _dibujar_halos_inicio_meta(self):
-        """Dibuja Inicio y Meta con anillos concéntricos que simulan halo luminoso."""
         self.canvas.delete("halos_fijos")
 
-        # Factor de pulso (0.0 a 1.0)
         osc = 0.5 + 0.5 * math.sin(self.fase_pulso)
 
         for coord, color, tag_nodo in [(self.inicio, TEMA["neon_verde"], "inicio"), (self.meta, TEMA["neon_magenta"], "meta")]:
             cx, cy = self.centro_celda(coord[0], coord[1])
             r_base = max(4, self.tamano_celda * 0.42)
 
-            # Capa 1: Halo exterior pulsante
             r_ext = r_base * (1.15 + 0.25 * osc)
             c_halo1 = mezclar_colores(TEMA["fondo_general"], color, 0.18 + 0.15 * osc)
             self.canvas.create_oval(
@@ -568,7 +483,6 @@ class InterfazLaberinto:
                 fill=c_halo1, outline="", tags="halos_fijos"
             )
 
-            # Capa 2: Halo medio
             r_mid = r_base * 0.8
             c_halo2 = mezclar_colores(TEMA["fondo_general"], color, 0.55)
             self.canvas.create_oval(
@@ -576,7 +490,6 @@ class InterfazLaberinto:
                 fill=c_halo2, outline="", tags="halos_fijos"
             )
 
-            # Capa 3: Núcleo brillante
             r_core = r_base * 0.45
             self.canvas.create_oval(
                 cx - r_core, cy - r_core, cx + r_core, cy + r_core,
@@ -584,7 +497,6 @@ class InterfazLaberinto:
             )
 
     def _iniciar_bucle_pulso(self):
-        """Bucle continuo para animar suavemente el halo de Inicio y Meta."""
         try:
             if not self.ventana.winfo_exists():
                 return
@@ -595,15 +507,7 @@ class InterfazLaberinto:
             self._dibujar_halos_inicio_meta()
         self.pulso_id = self.ventana.after(70, self._iniciar_bucle_pulso)
 
-    # ==========================================================================
-    # EFECTO DE BRILLO (GLOW): TRAZADO DE LÍNEAS MULTI-CAPA
-    # ==========================================================================
     def trazar_linea_glow(self, canvas, x1, y1, x2, y2, color_neon, grosor_base, tag="animacion"):
-        """
-        Dibuja una línea en 3 capas concéntricas (gruesa y tenue -> fina y blanca)
-        simulando el efecto óptico de brillo neón (Glow) sin librerías externas.
-        """
-        # Capa 1: Resplandor difuso exterior
         c1 = mezclar_colores(TEMA["fondo_general"], color_neon, 0.22)
         canvas.create_line(
             x1, y1, x2, y2,
@@ -613,7 +517,6 @@ class InterfazLaberinto:
             tags=tag
         )
 
-        # Capa 2: Cuerpo luminoso medio
         c2 = mezclar_colores(TEMA["fondo_general"], color_neon, 0.75)
         canvas.create_line(
             x1, y1, x2, y2,
@@ -623,7 +526,6 @@ class InterfazLaberinto:
             tags=tag
         )
 
-        # Capa 3: Núcleo de alta energía
         canvas.create_line(
             x1, y1, x2, y2,
             width=max(1, int(grosor_base * 0.5)),
@@ -633,7 +535,6 @@ class InterfazLaberinto:
         )
 
     def dibujar_nodo_glow(self, canvas, x, y, color_neon, r_base, tag="animacion"):
-        """Punto de anclaje con halo en la intersección de una celda visitada."""
         c_halo = mezclar_colores(TEMA["fondo_general"], color_neon, 0.40)
         canvas.create_oval(
             x - r_base * 1.5, y - r_base * 1.5,
@@ -646,9 +547,6 @@ class InterfazLaberinto:
             fill=color_neon, outline="#FFFFFF", width=1, tags=tag
         )
 
-    # ==========================================================================
-    # CARGA, REINICIO Y MANEJO DE ARCHIVOS
-    # ==========================================================================
     def _cargar_laberinto_inicial(self):
         try:
             self.matriz = cargar_laberinto_desde_archivo("laberintos/ejemplo1.txt")
@@ -719,9 +617,7 @@ class InterfazLaberinto:
             messagebox.showerror("Error al cargar", str(e))
 
     def generar_aleatorio_seleccionado(self):
-        """Lee la escala seleccionada en el menú y genera el laberinto correspondiente."""
         texto_opcion = self.combo_tamano.get()
-        # Extraer el número de dimensión (ej. "29x29" -> 29)
         dim = 29
         for parte in texto_opcion.split():
             if "x" in parte:
@@ -733,7 +629,6 @@ class InterfazLaberinto:
         self.generar_aleatorio(filas=dim, columnas=dim)
 
     def generar_aleatorio(self, filas=29, columnas=29):
-        """Genera un laberinto procedural desafiante con dimensiones ampliadas."""
         self.detener_animacion()
         self.matriz = generar_laberinto_aleatorio(filas=filas, columnas=columnas, caminos_alternativos=True)
         self.inicio = (1, 1)
@@ -767,9 +662,6 @@ class InterfazLaberinto:
         columnas = len(matriz[0])
         self.lbl_estado.config(text=f"LABERINTO CARGADO DESDE IMAGEN ({filas}x{columnas}).")
 
-    # ==========================================================================
-    # EJECUCIÓN Y ANIMACIÓN GLOW EN RED DE ÁRBOL (DIJKSTRA)
-    # ==========================================================================
     def ejecutar_algoritmo(self, tipo_algoritmo="DIJKSTRA"):
         return self.ejecutar_dijkstra()
 
@@ -777,7 +669,6 @@ class InterfazLaberinto:
         if self.esta_animando:
             self.detener_animacion()
 
-        # Limpiamos trazos anteriores sin recargar todo el canvas
         self.canvas.delete("animacion")
         self.canvas.delete("camino_final")
 
@@ -787,10 +678,8 @@ class InterfazLaberinto:
         resultado = dijkstra(self.grafo, self.inicio, self.meta)
         color_exploracion = TEMA["neon_cian"]
 
-        # Deducimos el árbol de procedencia (padre -> hijo) para el trazado visual
         padres = deducir_padres_arbol(self.grafo, resultado["orden_visita"], self.inicio)
 
-        # Actualizar telemetría inicial
         self.lbl_term_algoritmo.config(text="DIJKSTRA", fg=color_exploracion)
         self.lbl_term_solucion.config(
             text="PROPAGANDO..." if resultado["exito"] else "ANALIZANDO...",
@@ -802,7 +691,6 @@ class InterfazLaberinto:
         self.esta_animando = True
         self.lbl_estado.config(text="PROPAGANDO SEÑAL // DIJKSTRA (MIN-HEAP)...")
 
-        # Iniciar animación de árbol
         self._animar_arbol_exploracion(
             0,
             resultado["orden_visita"],
@@ -814,11 +702,6 @@ class InterfazLaberinto:
         )
 
     def _animar_arbol_exploracion(self, indice, orden_visita, padres, camino_final, exito, pasos_totales, color_neon):
-        """
-        Dibuja el árbol de búsqueda celda por celda:
-        Traza una línea con Glow desde el centro de la celda padre a la celda hija,
-        creando el efecto de propagación de señal en red.
-        """
         if not self.esta_animando:
             return
 
@@ -826,7 +709,6 @@ class InterfazLaberinto:
             nodo_actual = orden_visita[indice]
             nodo_padre = padres.get(nodo_actual)
 
-            # Si tiene celda padre, trazamos la arista con efecto Glow
             if nodo_padre is not None:
                 x1, y1 = self.centro_celda(nodo_padre[0], nodo_padre[1])
                 x2, y2 = self.centro_celda(nodo_actual[0], nodo_actual[1])
@@ -834,11 +716,9 @@ class InterfazLaberinto:
                 grosor = max(2, self.tamano_celda * 0.16)
                 self.trazar_linea_glow(self.canvas, x1, y1, x2, y2, color_neon, grosor, tag="animacion")
 
-                # Nodo luminoso en la intersección
                 r_dot = max(2, self.tamano_celda * 0.12)
                 self.dibujar_nodo_glow(self.canvas, x2, y2, color_neon, r_dot, tag="animacion")
 
-            # CONTADOR EN VIVO EN LA TERMINAL
             self.lbl_term_visitados.config(text=f"{indice + 1} CELDAS", fg=color_neon)
 
             velocidad = self.slider_velocidad.get()
@@ -854,11 +734,9 @@ class InterfazLaberinto:
                 color_neon
             )
         else:
-            # Fin de la fase de propagación
             if exito and camino_final:
                 self.lbl_term_solucion.config(text="RUTA CONFIRMADA", fg=TEMA["neon_verde"])
                 self.lbl_estado.config(text="TRAZANDO RUTA ÓPTIMA FINAL...")
-                # Iniciar trazado progresivo del camino final
                 self._animar_camino_progresivo(0, camino_final, pasos_totales)
             else:
                 self.esta_animando = False
@@ -870,10 +748,6 @@ class InterfazLaberinto:
                 )
 
     def _animar_camino_progresivo(self, indice, camino, pasos_totales):
-        """
-        Traza la ruta ganadora de forma progresiva paso a paso,
-        usando una línea dorada gruesa con resplandor intenso.
-        """
         if not self.esta_animando:
             return
 
@@ -887,10 +761,8 @@ class InterfazLaberinto:
             grosor = max(3, self.tamano_celda * 0.28)
             self.trazar_linea_glow(self.canvas, x1, y1, x2, y2, TEMA["neon_ambar"], grosor, tag="camino_final")
 
-            # Actualizar pasos en vivo en la terminal
             self.lbl_term_pasos.config(text=f"{indice + 1} / {pasos_totales} PASOS", fg=TEMA["neon_ambar"])
 
-            # Velocidad un poco más rápida para la ruta final
             vel = max(10, int(self.slider_velocidad.get() * 0.8))
             self.animacion_id = self.ventana.after(
                 vel,
@@ -900,23 +772,18 @@ class InterfazLaberinto:
                 pasos_totales
             )
         else:
-            # Ruta completa: Disparar el destello final
             self.lbl_term_pasos.config(text=f"{pasos_totales} PASOS", fg=TEMA["neon_ambar"])
             self.lbl_estado.config(text="¡OBJETIVO ALCANZADO // ANÁLISIS COMPLETADO!")
             self._destello_final(0)
 
     def _destello_final(self, fase):
-        """Efecto de destello (flare) blanco-dorado sobre la ruta al llegar a la meta."""
         if fase == 0:
-            # Destello blanco puro en el núcleo
             self.canvas.itemconfig("camino_final", fill="#FFFFFF")
             self.animacion_id = self.ventana.after(110, self._destello_final, 1)
         elif fase == 1:
-            # Destello dorado claro
             self.canvas.itemconfig("camino_final", fill="#FFE082")
             self.animacion_id = self.ventana.after(110, self._destello_final, 2)
         else:
-            # Restaurar el color ámbar original
             self.canvas.itemconfig("camino_final", fill=TEMA["neon_ambar"])
             self.esta_animando = False
             self._dibujar_halos_inicio_meta()

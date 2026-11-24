@@ -1,22 +1,3 @@
-"""
-imagen_a_matriz.py
-------------------
-Módulo universal para digitalizar imágenes de laberintos (fotos o capturas).
-
-Soporta los dos formatos universales de laberintos:
-1. LABERINTOS DE LÍNEAS / PAREDES FINAS (como el de la imagen subida):
-   - Los caminos son habitaciones cuadradas y las paredes son líneas negras delgadas
-     que separan los pasillos.
-   - Detecta la cuadrícula de pasillos y construye la matriz de bloques (2N + 1).
-2. LABERINTOS DE BLOQUES COMPLETOS:
-   - Las paredes y los caminos ocupan celdas cuadradas completas.
-
-Auto-detección inteligente:
-- Mide la densidad de tinta negra: si es menor al 28%, clasifica automáticamente
-  como laberinto de paredes finas; si es mayor, como laberinto de bloques.
-- Permite al usuario calibrar interactivamente las divisiones y el tipo.
-"""
-
 import cv2
 import numpy as np
 import tkinter as tk
@@ -24,10 +5,6 @@ from tkinter import messagebox
 
 
 def estimar_cuadricula_lineas(recortada_bin):
-    """
-    Detecta la distancia entre paredes (pitch) en laberintos de líneas delgadas
-    buscando picos de densidad oscura en las columnas y filas.
-    """
     alto, ancho = recortada_bin.shape
     col_dark = np.sum(recortada_bin == 0, axis=0)
     umbral = np.percentile(col_dark, 70)
@@ -50,7 +27,6 @@ def estimar_cuadricula_lineas(recortada_bin):
 
 
 def estimar_cuadricula_bloques(recortada_bin):
-    """Estima cantidad de bloques para laberintos gruesos tradicionales."""
     alto, ancho = recortada_bin.shape
     invertida = 255 - recortada_bin
 
@@ -83,10 +59,6 @@ def estimar_cuadricula_bloques(recortada_bin):
 
 
 def procesar_imagen_laberinto(ruta_imagen, tipo_manual=None, divisiones_manual=None):
-    """
-    Procesa la imagen, recorta márgenes y convierte a matriz de 0s y 1s.
-    Retorna diccionario con la matriz lista para resolución y visualización.
-    """
     img = cv2.imread(ruta_imagen)
     if img is None:
         raise ValueError(f"No se pudo cargar la imagen: {ruta_imagen}")
@@ -94,7 +66,6 @@ def procesar_imagen_laberinto(ruta_imagen, tipo_manual=None, divisiones_manual=N
     gris = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, binaria = cv2.threshold(gris, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    # 1. Recortar exactamente el marco del laberinto (descartar márgenes blancos)
     ys, xs = np.where(binaria == 0)
     if len(ys) == 0:
         raise ValueError("La imagen parece estar en blanco o no contiene paredes oscuras.")
@@ -106,29 +77,20 @@ def procesar_imagen_laberinto(ruta_imagen, tipo_manual=None, divisiones_manual=N
     recortada_color = img[y1:y2 + 1, x1:x2 + 1]
     alto, ancho = recortada_bin.shape
 
-    # 2. Determinar si es de Líneas Delgadas o Bloques Gruesos
     pct_pared = np.mean(recortada_bin == 0) * 100
     if tipo_manual:
         tipo = tipo_manual
     else:
-        # En laberintos de líneas, las paredes ocupan menos del 28% de los píxeles
         tipo = "lineas" if pct_pared < 28 else "bloques"
 
     imagen_con_grid = recortada_color.copy()
 
-    # -------------------------------------------------------------------------
-    # CASO 1: LABERINTO DE PAREDES FINAS / LÍNEAS (ej. la imagen subida)
-    # -------------------------------------------------------------------------
     if tipo == "lineas":
         if divisiones_manual and divisiones_manual > 3:
             n_x = n_y = int(divisiones_manual)
         else:
             n_x, n_y = estimar_cuadricula_lineas(recortada_bin)
 
-        # CALIBRACIÓN DE LÍNEAS EXACTAS (Grid Line Snapping):
-        # En lugar de dividir ciegamente ancho/n_x (lo que acumula error de redondeo
-        # y desfasa la cuadrícula en la esquina inferior derecha), alineamos cada
-        # línea de la cuadrícula con el pico real de píxeles negros en su vecindad.
         col_lines = []
         for k in range(n_x + 1):
             exp_x = int(round(k * (ancho - 1) / n_x))
@@ -147,12 +109,10 @@ def procesar_imagen_laberinto(ruta_imagen, tipo_manual=None, divisiones_manual=N
         cols_mat = 2 * n_x + 1
         matriz = np.ones((filas_mat, cols_mat), dtype=int)
 
-        # Los centros de cada cuarto son siempre camino libre (0)
         for r in range(n_y):
             for c in range(n_x):
                 matriz[2 * r + 1, 2 * c + 1] = 0
 
-        # Muestreo robusto de paredes verticales internas
         for r in range(n_y):
             ys_start = row_lines[r] + 3
             ys_end = row_lines[r + 1] - 3
@@ -162,7 +122,6 @@ def procesar_imagen_laberinto(ruta_imagen, tipo_manual=None, divisiones_manual=N
                 col_densities = np.mean(muestra == 0, axis=0) if muestra.size > 0 else [0]
                 matriz[2 * r + 1, 2 * c + 2] = 1 if np.max(col_densities) > 0.40 else 0
 
-        # Muestreo robusto de paredes horizontales internas
         for r in range(n_y - 1):
             yw = row_lines[r + 1]
             for c in range(n_x):
@@ -172,33 +131,30 @@ def procesar_imagen_laberinto(ruta_imagen, tipo_manual=None, divisiones_manual=N
                 row_densities = np.mean(muestra == 0, axis=1) if muestra.size > 0 else [0]
                 matriz[2 * r + 2, 2 * c + 1] = 1 if np.max(row_densities) > 0.40 else 0
 
-        # Dibujar cuadrícula perfectamente alineada sobre la foto original
         for y_line in row_lines:
             cv2.line(imagen_con_grid, (0, y_line), (ancho, y_line), (0, 229, 255), 1)
         for x_line in col_lines:
             cv2.line(imagen_con_grid, (x_line, 0), (x_line, alto), (0, 229, 255), 1)
 
-        # Detección de aberturas de entrada y salida en el perímetro
         aberturas = []
-        # Borde superior
         for c in range(n_x):
             muestra_borde = recortada_bin[0:max(3, row_lines[0] + 2), col_lines[c] + 3 : col_lines[c + 1] - 3]
             if muestra_borde.size > 0 and np.mean(muestra_borde == 255) > 0.60:
                 matriz[0, 2 * c + 1] = 0
                 aberturas.append((0, 2 * c + 1))
-        # Borde inferior
+
         for c in range(n_x):
             muestra_borde = recortada_bin[min(alto - 3, row_lines[-1] - 1):alto, col_lines[c] + 3 : col_lines[c + 1] - 3]
             if muestra_borde.size > 0 and np.mean(muestra_borde == 255) > 0.60:
                 matriz[-1, 2 * c + 1] = 0
                 aberturas.append((filas_mat - 1, 2 * c + 1))
-        # Borde izquierdo
+
         for r in range(n_y):
             muestra_borde = recortada_bin[row_lines[r] + 3 : row_lines[r + 1] - 3, 0:max(3, col_lines[0] + 2)]
             if muestra_borde.size > 0 and np.mean(muestra_borde == 255) > 0.60:
                 matriz[2 * r + 1, 0] = 0
                 aberturas.append((2 * r + 1, 0))
-        # Borde derecho
+
         for r in range(n_y):
             muestra_borde = recortada_bin[row_lines[r] + 3 : row_lines[r + 1] - 3, min(ancho - 3, col_lines[-1] - 1):ancho]
             if muestra_borde.size > 0 and np.mean(muestra_borde == 255) > 0.60:
@@ -227,9 +183,6 @@ def procesar_imagen_laberinto(ruta_imagen, tipo_manual=None, divisiones_manual=N
             "imagen_recortada": recortada_color
         }
 
-    # -------------------------------------------------------------------------
-    # CASO 2: LABERINTO DE BLOQUES COMPLETOS (ej. laberinto_7x7.png)
-    # -------------------------------------------------------------------------
     else:
         if divisiones_manual and divisiones_manual > 2:
             filas = columnas = int(divisiones_manual)
@@ -261,7 +214,6 @@ def procesar_imagen_laberinto(ruta_imagen, tipo_manual=None, divisiones_manual=N
 
             matriz.append(fila_actual)
 
-        # Detectar inicio y meta
         libres = [(f, c) for f in range(filas) for c in range(columnas) if matriz[f][c] == 0]
         if len(libres) >= 2:
             inicio = libres[0]
@@ -283,9 +235,6 @@ def procesar_imagen_laberinto(ruta_imagen, tipo_manual=None, divisiones_manual=N
         }
 
 
-# ==============================================================================
-# VENTANA DE CALIBRACIÓN Y PREVISUALIZACIÓN NEÓN
-# ==============================================================================
 class DialogoPrevisualizacionImagen:
     def __init__(self, padre, ruta_imagen, callback_exito):
         self.padre = padre
@@ -303,7 +252,6 @@ class DialogoPrevisualizacionImagen:
         self.foto_tk = None
         self.rectangulos_matriz = {}
 
-        # Procesar imagen inicialmente con auto-detección
         self.resultado = procesar_imagen_laberinto(self.ruta_imagen)
         self.matriz = self.resultado["matriz"]
         self.filas = self.resultado["filas"]
@@ -388,11 +336,9 @@ class DialogoPrevisualizacionImagen:
         )
         lbl_ayuda.pack(side=tk.RIGHT, padx=10)
 
-        # Paneles lado a lado
         area = tk.Frame(self.ventana, bg="#070B14")
         area.pack(fill=tk.BOTH, expand=True, padx=15)
 
-        # Panel 1: Foto con Grid
         p_izq = tk.LabelFrame(
             area,
             text=" 1. FOTO ORIGINAL + CUADRÍCULA CALIBRADA ",
@@ -408,7 +354,6 @@ class DialogoPrevisualizacionImagen:
         self.canvas_foto = tk.Canvas(p_izq, width=self.tamano_canvas, height=self.tamano_canvas, bg="#05080F", highlightthickness=0)
         self.canvas_foto.pack(expand=True, pady=8)
 
-        # Panel 2: Matriz Digitalizada
         p_der = tk.LabelFrame(
             area,
             text=" 2. MATRIZ DE GRAFO RECONSTRUIDA ",
@@ -427,7 +372,6 @@ class DialogoPrevisualizacionImagen:
         self.canvas_matriz.bind("<Button-1>", self._clic_izquierdo_inicio)
         self.canvas_matriz.bind("<Button-3>", self._clic_derecho_meta)
 
-        # Barra inferior
         barra_inf = tk.Frame(self.ventana, bg="#070B14")
         barra_inf.pack(fill=tk.X, padx=15, pady=(8, 12))
 
@@ -472,7 +416,6 @@ class DialogoPrevisualizacionImagen:
         self.canvas_foto.delete("all")
         self.canvas_foto.create_image(self.tamano_canvas // 2, self.tamano_canvas // 2, image=self.foto_tk)
 
-        # Dibujar matriz digital
         self.canvas_matriz.delete("all")
         self.rectangulos_matriz.clear()
 

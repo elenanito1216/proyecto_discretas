@@ -1,30 +1,7 @@
-"""
-algoritmos.py
--------------
-Módulo con la implementación del algoritmo de búsqueda sobre grafos:
-DIJKSTRA (Camino de Costo Mínimo):
-- Utiliza una COLA DE PRIORIDAD (Min-Heap / Montículo de Mínimos con heapq).
-- En este laberinto, cada movimiento entre celdas libres adyacentes tiene un costo uniforme de 1.
-- GARANTIZA encontrar el camino de menor costo (óptimo / distancia más corta), expandiendo
-  siempre el nodo con la menor distancia acumulada conocida.
-
-Retorna:
-- exito (bool): Si se llegó o no a la meta.
-- camino (list): Lista de coordenadas (fila, col) desde el inicio hasta la meta.
-- pasos (int): Cantidad de pasos del camino (aristas recorridas = longitud - 1).
-- total_visitados (int): Cantidad total de celdas que el algoritmo tuvo que explorar.
-- orden_visita (list): Orden exacto en que se fueron explorando las celdas (para la animación).
-"""
-
 import heapq
 
 
 def reconstruir_camino(padres, inicio, meta):
-    """
-    Función auxiliar para reconstruir el camino desde la meta hacia el inicio,
-    siguiendo el diccionario de 'padres' que guardó el algoritmo.
-    Retorna la lista de coordenadas en orden desde inicio hasta meta.
-    """
     camino = []
     nodo_actual = meta
 
@@ -32,25 +9,14 @@ def reconstruir_camino(padres, inicio, meta):
         camino.append(nodo_actual)
         nodo_actual = padres.get(nodo_actual)
 
-    # El camino se construyó de meta a inicio, así que lo invertimos
     camino.reverse()
 
-    # Si el camino empieza en inicio, la reconstrucción fue exitosa
     if camino and camino[0] == inicio:
         return camino
     return []
 
 
 def dijkstra(grafo, inicio, meta):
-    """
-    Algoritmo de Dijkstra para caminos de costo mínimo.
-    
-    ¿Cómo funciona en este laberinto?
-    - Cada movimiento entre celdas vecinas tiene costo = 1 (grafo no ponderado con costo uniforme).
-    - Mantiene una cola de prioridad (min-heap) que extrae siempre el nodo con menor distancia acumulada.
-    - Garantiza encontrar el camino más corto (óptimo).
-    - Complejidad: O((V + E) log V) gracias al uso del montículo de mínimos.
-    """
     if inicio not in grafo or meta not in grafo:
         return {
             "exito": False,
@@ -69,12 +35,8 @@ def dijkstra(grafo, inicio, meta):
             "orden_visita": [inicio]
         }
 
-    # distancias[nodo]: menor distancia conocida desde el inicio hasta 'nodo'
     distancias = {inicio: 0}
     padres = {inicio: None}
-
-    # Cola de prioridad (min-heap): guarda tuplas (distancia, contador_insercion, nodo)
-    # El contador entero sirve para desempatar sin comparar tuplas de coordenadas
     contador = 0
     cola_prioridad = [(0, contador, inicio)]
 
@@ -85,22 +47,19 @@ def dijkstra(grafo, inicio, meta):
     while cola_prioridad:
         dist_actual, _, actual = heapq.heappop(cola_prioridad)
 
-        # Si ya visitamos este nodo definitivamente, lo saltamos (poda estándar de Dijkstra)
         if actual in visitados:
             continue
 
         visitados.add(actual)
         orden_visita.append(actual)
 
-        # Si alcanzamos la meta, detenemos la búsqueda
         if actual == meta:
             meta_encontrada = True
             break
 
-        # Exploramos vecinos en el grafo
         for vecino in grafo.get(actual, []):
             if vecino not in visitados:
-                nueva_dist = dist_actual + 1  # Costo 1 por celda en la cuadrícula
+                nueva_dist = dist_actual + 1
                 if nueva_dist < distancias.get(vecino, float('inf')):
                     distancias[vecino] = nueva_dist
                     padres[vecino] = actual
