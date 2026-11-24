@@ -4,18 +4,17 @@ interfaz.py
 Interfaz gráfica para el Solucionador de Laberintos en Python con Tkinter.
 Diseño: 'Cyberpunk / Night Navigation Grid'
 
-Paso 2:
+Características:
 - Efecto Glow (brillo simulado multi-capa mediante 'mezclar_colores').
-- Propagación de señal en red de árbol (líneas luminosas padre -> hijo).
+- Propagación de señal en red de árbol para el Algoritmo de Dijkstra.
 - Trazado progresivo de la ruta óptima final con destello de llegada.
 - Inicio y Meta con halos concéntricos y animación de pulso continuo.
-- Contador de telemetría en vivo durante la exploración.
-- Modo 'Comparativa Simultánea' (BFS vs DFS lado a lado en dos lienzos).
+- Telemetría en vivo durante la exploración.
 """
 
+import ctypes
 import math
 import sys
-import ctypes
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
@@ -44,7 +43,7 @@ from laberinto import (
     validar_coordenadas,
     generar_laberinto_aleatorio
 )
-from algoritmos import bfs, dfs, dijkstra
+from algoritmos import dijkstra
 from imagen_a_matriz import DialogoPrevisualizacionImagen
 
 
@@ -65,11 +64,10 @@ TEMA = {
     "pared_borde": "#0C1322",         # Borde muy sutil para insinuar masa
 
     # Paleta Neón
-    "neon_cian": "#00E5FF",           # BFS y propagación de señal
-    "neon_magenta": "#FF2BD6",        # DFS y nodo Meta
-    "neon_dijkstra": "#B388FF",       # Dijkstra (Violeta / Púrpura eléctrico)
+    "neon_cian": "#00E5FF",           # Dijkstra y propagación de señal
+    "neon_magenta": "#FF2BD6",        # Nodo Meta
     "neon_verde": "#39FF14",          # Nodo Inicio
-    "neon_ambar": "#FFB300",          # Ruta final optimizada / Reinicio / Podio
+    "neon_ambar": "#FFB300",          # Ruta final optimizada / Reinicio
     "neon_azul": "#00B0FF",           # Archivos y datos
 
     # Tipografía
@@ -104,9 +102,9 @@ def mezclar_colores(color1_hex, color2_hex, factor=0.5):
     return f"#{r:02x}{g:02x}{b:02x}".upper()
 
 
-def deducir_padres_arbol(grafo, orden_visita, inicio, tipo_algoritmo="BFS"):
+def deducir_padres_arbol(grafo, orden_visita, inicio):
     """
-    Determina la relación padre -> hijo para cada nodo de la exploración.
+    Determina la relación padre -> hijo para cada nodo de la exploración de Dijkstra.
     Permite dibujar las aristas del árbol que se expande por las calles.
     Optimizado en O(V) mediante índice de visita y vecinos adyacentes.
     """
@@ -116,27 +114,14 @@ def deducir_padres_arbol(grafo, orden_visita, inicio, tipo_algoritmo="BFS"):
     pos_visita = {nodo: idx for idx, nodo in enumerate(orden_visita)}
     padres = {inicio: None}
 
-    if tipo_algoritmo in ("BFS", "DIJKSTRA"):
-        # En BFS y Dijkstra, cada celda se conecta al vecino que fue visitado
-        # con el menor índice de secuencia temporal (árbol de distancias mínimas)
-        for i in range(1, len(orden_visita)):
-            nodo = orden_visita[i]
-            vecinos_previos = [
-                v for v in grafo.get(nodo, [])
-                if v in pos_visita and pos_visita[v] < i
-            ]
-            if vecinos_previos:
-                padres[nodo] = min(vecinos_previos, key=lambda v: pos_visita[v])
-    else:
-        # En DFS, cada celda proviene del vecino más reciente en la rama activa
-        for i in range(1, len(orden_visita)):
-            nodo = orden_visita[i]
-            vecinos_previos = [
-                v for v in grafo.get(nodo, [])
-                if v in pos_visita and pos_visita[v] < i
-            ]
-            if vecinos_previos:
-                padres[nodo] = max(vecinos_previos, key=lambda v: pos_visita[v])
+    for i in range(1, len(orden_visita)):
+        nodo = orden_visita[i]
+        vecinos_previos = [
+            v for v in grafo.get(nodo, [])
+            if v in pos_visita and pos_visita[v] < i
+        ]
+        if vecinos_previos:
+            padres[nodo] = min(vecinos_previos, key=lambda v: pos_visita[v])
 
     return padres
 
@@ -193,7 +178,7 @@ class BotonNeon(tk.Frame):
 class InterfazLaberinto:
     def __init__(self, ventana):
         self.ventana = ventana
-        self.ventana.title("MAZE SOLVER // BFS vs DFS vs Dijkstra— Cyber Navigation Grid")
+        self.ventana.title("MAZE SOLVER // Algoritmo de Dijkstra — Cyber Navigation Grid")
         self.ventana.geometry("1020x720")
         self.ventana.minsize(940, 660)
         self.ventana.configure(bg=TEMA["fondo_general"])
@@ -250,7 +235,7 @@ class InterfazLaberinto:
 
         lbl_logo = tk.Label(
             encabezado,
-            text="⚡ MAZE SOLVER // BFS vs DFS vs DIJKSTRA",
+            text="⚡ MAZE SOLVER // ALGORITMO DE DIJKSTRA",
             font=TEMA["fuente_titulo"],
             bg=TEMA["panel"],
             fg=TEMA["neon_cian"]
@@ -310,40 +295,16 @@ class InterfazLaberinto:
 
         BotonNeon(
             panel_der,
-            texto="EJECUTAR BFS (ANCHURA)",
+            texto="RESOLVER CON DIJKSTRA",
             color_neon=TEMA["neon_cian"],
-            comando=lambda: self.ejecutar_algoritmo("BFS"),
-            icono="◈"
-        ).pack(fill=tk.X, padx=10, pady=(3, 3))
-
-        BotonNeon(
-            panel_der,
-            texto="EJECUTAR DFS (PROFUNDIDAD)",
-            color_neon=TEMA["neon_magenta"],
-            comando=lambda: self.ejecutar_algoritmo("DFS"),
-            icono="◇"
-        ).pack(fill=tk.X, padx=10, pady=(0, 3))
-
-        BotonNeon(
-            panel_der,
-            texto="EJECUTAR DIJKSTRA (COSTO MÍNIMO)",
-            color_neon=TEMA["neon_dijkstra"],
-            comando=lambda: self.ejecutar_algoritmo("DIJKSTRA"),
+            comando=self.ejecutar_dijkstra,
             icono="⬡"
-        ).pack(fill=tk.X, padx=10, pady=(0, 3))
-
-        BotonNeon(
-            panel_der,
-            texto="⚡ COMPETIR LOS 3 (TIEMPO REAL)",
-            color_neon=TEMA["neon_ambar"],
-            comando=self.abrir_modo_competencia,
-            icono="⚔"
-        ).pack(fill=tk.X, padx=10, pady=(0, 4))
+        ).pack(fill=tk.X, padx=10, pady=(3, 5))
 
         BotonNeon(
             panel_der,
             texto="REINICIAR VISTA",
-            color_neon="#7A8C9E",
+            color_neon=TEMA["neon_ambar"],
             comando=self.reiniciar_visualizacion,
             icono="↺"
         ).pack(fill=tk.X, padx=10, pady=(0, 8))
@@ -529,9 +490,7 @@ class InterfazLaberinto:
 
         _badge("INICIO", TEMA["neon_verde"], TEMA["neon_verde"])
         _badge("META", TEMA["neon_magenta"], TEMA["neon_magenta"])
-        _badge("BFS", TEMA["neon_cian"], TEMA["neon_cian"])
-        _badge("DFS", TEMA["neon_magenta"], TEMA["neon_magenta"])
-        _badge("DIJKSTRA", TEMA["neon_dijkstra"], TEMA["neon_dijkstra"])
+        _badge("DIJKSTRA", TEMA["neon_cian"], TEMA["neon_cian"])
         _badge("RUTA", TEMA["neon_ambar"], TEMA["neon_ambar"])
         _badge("CALLE", TEMA["texto_secundario"], TEMA["calle_fondo"])
 
@@ -809,9 +768,12 @@ class InterfazLaberinto:
         self.lbl_estado.config(text=f"LABERINTO CARGADO DESDE IMAGEN ({filas}x{columnas}).")
 
     # ==========================================================================
-    # EJECUCIÓN Y ANIMACIÓN GLOW EN RED DE ÁRBOL
+    # EJECUCIÓN Y ANIMACIÓN GLOW EN RED DE ÁRBOL (DIJKSTRA)
     # ==========================================================================
-    def ejecutar_algoritmo(self, tipo_algoritmo):
+    def ejecutar_algoritmo(self, tipo_algoritmo="DIJKSTRA"):
+        return self.ejecutar_dijkstra()
+
+    def ejecutar_dijkstra(self):
         if self.esta_animando:
             self.detener_animacion()
 
@@ -822,24 +784,14 @@ class InterfazLaberinto:
         if not self.grafo:
             self.grafo = matriz_a_grafo(self.matriz)
 
-        if tipo_algoritmo == "BFS":
-            resultado = bfs(self.grafo, self.inicio, self.meta)
-            color_exploracion = TEMA["neon_cian"]
-        elif tipo_algoritmo == "DFS":
-            resultado = dfs(self.grafo, self.inicio, self.meta)
-            color_exploracion = TEMA["neon_magenta"]
-        elif tipo_algoritmo == "DIJKSTRA":
-            resultado = dijkstra(self.grafo, self.inicio, self.meta)
-            color_exploracion = TEMA["neon_dijkstra"]
-        else:
-            resultado = bfs(self.grafo, self.inicio, self.meta)
-            color_exploracion = TEMA["neon_cian"]
+        resultado = dijkstra(self.grafo, self.inicio, self.meta)
+        color_exploracion = TEMA["neon_cian"]
 
         # Deducimos el árbol de procedencia (padre -> hijo) para el trazado visual
-        padres = deducir_padres_arbol(self.grafo, resultado["orden_visita"], self.inicio, tipo_algoritmo)
+        padres = deducir_padres_arbol(self.grafo, resultado["orden_visita"], self.inicio)
 
         # Actualizar telemetría inicial
-        self.lbl_term_algoritmo.config(text=tipo_algoritmo, fg=color_exploracion)
+        self.lbl_term_algoritmo.config(text="DIJKSTRA", fg=color_exploracion)
         self.lbl_term_solucion.config(
             text="PROPAGANDO..." if resultado["exito"] else "ANALIZANDO...",
             fg=TEMA["neon_cian"]
@@ -848,7 +800,7 @@ class InterfazLaberinto:
         self.lbl_term_visitados.config(text="0 CELDAS", fg=TEMA["neon_verde"])
 
         self.esta_animando = True
-        self.lbl_estado.config(text=f"PROPAGANDO SEÑAL // {tipo_algoritmo}...")
+        self.lbl_estado.config(text="PROPAGANDO SEÑAL // DIJKSTRA (MIN-HEAP)...")
 
         # Iniciar animación de árbol
         self._animar_arbol_exploracion(
@@ -968,377 +920,3 @@ class InterfazLaberinto:
             self.canvas.itemconfig("camino_final", fill=TEMA["neon_ambar"])
             self.esta_animando = False
             self._dibujar_halos_inicio_meta()
-
-    # ==========================================================================
-    # MODO COMPETENCIA TRIANGULAR: BFS vs DFS vs DIJKSTRA
-    # ==========================================================================
-    def abrir_modo_competencia(self):
-        """Abre la arena de competencia en tiempo real entre los 3 algoritmos."""
-        self.detener_animacion()
-        VentanaCompetencia(self.ventana, self.matriz, self.inicio, self.meta, self.slider_velocidad.get())
-
-    def abrir_modo_comparar(self):
-        """Alias para compatibilidad con llamadas previas."""
-        self.abrir_modo_competencia()
-
-
-class VentanaCompetencia:
-    """
-    Arena de competencia simultánea en tiempo real:
-    Ejecuta BFS, DFS y Dijkstra en tres lienzos sincronizados paso a paso.
-    """
-    def __init__(self, padre, matriz, inicio, meta, velocidad):
-        self.padre = padre
-        self.matriz = matriz
-        self.inicio = inicio
-        self.meta = meta
-        self.velocidad = velocidad
-        self.timer_id = None
-
-        self.ventana = tk.Toplevel(padre)
-        self.ventana.title("ARENA DE COMPETENCIA // BFS vs DFS vs DIJKSTRA (TIEMPO REAL)")
-        self.ventana.geometry("1280x700")
-        self.ventana.minsize(1080, 590)
-        self.ventana.configure(bg=TEMA["fondo_general"])
-        self.ventana.grab_set()
-        self.ventana.protocol("WM_DELETE_WINDOW", self._al_cerrar)
-
-        # 1. Ejecutar los tres algoritmos sobre el mismo grafo
-        self.grafo = matriz_a_grafo(matriz)
-        self.res_bfs = bfs(self.grafo, inicio, meta)
-        self.res_dfs = dfs(self.grafo, inicio, meta)
-        self.res_dijk = dijkstra(self.grafo, inicio, meta)
-
-        # 2. Deducir las relaciones padre->hijo para el trazado de cada árbol
-        self.padres_bfs = deducir_padres_arbol(self.grafo, self.res_bfs["orden_visita"], inicio, "BFS")
-        self.padres_dfs = deducir_padres_arbol(self.grafo, self.res_dfs["orden_visita"], inicio, "DFS")
-        self.padres_dijk = deducir_padres_arbol(self.grafo, self.res_dijk["orden_visita"], inicio, "DIJKSTRA")
-
-        self.tam_canvas = 360
-        self._crear_interfaz()
-        self._iniciar_simulacion()
-
-    def _al_cerrar(self):
-        if self.timer_id is not None:
-            try:
-                self.ventana.after_cancel(self.timer_id)
-            except Exception:
-                pass
-        self.ventana.destroy()
-
-    def _crear_interfaz(self):
-        # Encabezado superior
-        top = tk.Frame(self.ventana, bg=TEMA["panel"], highlightthickness=1, highlightbackground=TEMA["panel_borde"])
-        top.pack(fill=tk.X, padx=12, pady=(10, 6), ipady=4)
-
-        tk.Label(
-            top,
-            text="⚔ ARENA DE COMPETENCIA TRIANGULAR: BFS vs DFS vs DIJKSTRA",
-            font=("Consolas", 11, "bold"),
-            bg=TEMA["panel"],
-            fg=TEMA["neon_ambar"]
-        ).pack(side=tk.LEFT, padx=12)
-
-        tk.Label(
-            top,
-            text="EXPLORACIÓN SINCRONIZADA EN TIEMPO REAL // MISMO LABERINTO",
-            font=("Consolas", 8),
-            bg=TEMA["panel"],
-            fg=TEMA["texto_secundario"]
-        ).pack(side=tk.RIGHT, padx=12)
-
-        # Contenedor de los 3 lienzos
-        area = tk.Frame(self.ventana, bg=TEMA["fondo_general"])
-        area.pack(fill=tk.BOTH, expand=True, padx=12)
-
-        # ------------------ PANEL 1: BFS (ANCHURA) ------------------
-        f_bfs = tk.LabelFrame(
-            area,
-            text=" ◈ BFS (ANCHURA) — Cola FIFO ",
-            font=("Consolas", 8, "bold"),
-            bg=TEMA["panel"],
-            fg=TEMA["neon_cian"],
-            bd=1,
-            highlightthickness=1,
-            highlightbackground=TEMA["neon_cian"]
-        )
-        f_bfs.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 4))
-
-        self.canvas_bfs = tk.Canvas(f_bfs, width=self.tam_canvas, height=self.tam_canvas, bg=TEMA["fondo_general"], highlightthickness=0)
-        self.canvas_bfs.pack(expand=True, pady=4)
-
-        self.lbl_tele_bfs = tk.Label(
-            f_bfs,
-            text="Celdas: 0 | Pasos: --",
-            font=("Consolas", 8, "bold"),
-            bg=TEMA["panel"],
-            fg=TEMA["neon_cian"]
-        )
-        self.lbl_tele_bfs.pack(pady=1)
-
-        self.lbl_estado_bfs = tk.Label(
-            f_bfs,
-            text="[ EXPLORANDO ]",
-            font=("Consolas", 8),
-            bg=TEMA["panel"],
-            fg=TEMA["texto_secundario"]
-        )
-        self.lbl_estado_bfs.pack(pady=(0, 4))
-
-        # ------------------ PANEL 2: DFS (PROFUNDIDAD) ------------------
-        f_dfs = tk.LabelFrame(
-            area,
-            text=" ◇ DFS (PROFUNDIDAD) — Pila LIFO ",
-            font=("Consolas", 8, "bold"),
-            bg=TEMA["panel"],
-            fg=TEMA["neon_magenta"],
-            bd=1,
-            highlightthickness=1,
-            highlightbackground=TEMA["neon_magenta"]
-        )
-        f_dfs.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4)
-
-        self.canvas_dfs = tk.Canvas(f_dfs, width=self.tam_canvas, height=self.tam_canvas, bg=TEMA["fondo_general"], highlightthickness=0)
-        self.canvas_dfs.pack(expand=True, pady=4)
-
-        self.lbl_tele_dfs = tk.Label(
-            f_dfs,
-            text="Celdas: 0 | Pasos: --",
-            font=("Consolas", 8, "bold"),
-            bg=TEMA["panel"],
-            fg=TEMA["neon_magenta"]
-        )
-        self.lbl_tele_dfs.pack(pady=1)
-
-        self.lbl_estado_dfs = tk.Label(
-            f_dfs,
-            text="[ EXPLORANDO ]",
-            font=("Consolas", 8),
-            bg=TEMA["panel"],
-            fg=TEMA["texto_secundario"]
-        )
-        self.lbl_estado_dfs.pack(pady=(0, 4))
-
-        # ------------------ PANEL 3: DIJKSTRA (PRIORIDAD) ------------------
-        f_dijk = tk.LabelFrame(
-            area,
-            text=" ⬡ DIJKSTRA (PRIORIDAD) — Min-Heap ",
-            font=("Consolas", 8, "bold"),
-            bg=TEMA["panel"],
-            fg=TEMA["neon_dijkstra"],
-            bd=1,
-            highlightthickness=1,
-            highlightbackground=TEMA["neon_dijkstra"]
-        )
-        f_dijk.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(4, 0))
-
-        self.canvas_dijk = tk.Canvas(f_dijk, width=self.tam_canvas, height=self.tam_canvas, bg=TEMA["fondo_general"], highlightthickness=0)
-        self.canvas_dijk.pack(expand=True, pady=4)
-
-        self.lbl_tele_dijk = tk.Label(
-            f_dijk,
-            text="Celdas: 0 | Pasos: --",
-            font=("Consolas", 8, "bold"),
-            bg=TEMA["panel"],
-            fg=TEMA["neon_dijkstra"]
-        )
-        self.lbl_tele_dijk.pack(pady=1)
-
-        self.lbl_estado_dijk = tk.Label(
-            f_dijk,
-            text="[ EXPLORANDO ]",
-            font=("Consolas", 8),
-            bg=TEMA["panel"],
-            fg=TEMA["texto_secundario"]
-        )
-        self.lbl_estado_dijk.pack(pady=(0, 4))
-
-        # Barra inferior de conclusiones y podio
-        barra_inf = tk.Frame(self.ventana, bg=TEMA["terminal_fondo"], highlightthickness=1, highlightbackground=TEMA["panel_borde"])
-        barra_inf.pack(fill=tk.X, padx=12, pady=(6, 10), ipady=5)
-
-        self.lbl_conclusion = tk.Label(
-            barra_inf,
-            text="SIMULACIÓN EN CURSO // LOS 3 ALGORITMOS EXPLORAN LA CUADRÍCULA...",
-            font=("Consolas", 8, "bold"),
-            bg=TEMA["terminal_fondo"],
-            fg=TEMA["neon_verde"],
-            justify=tk.LEFT
-        )
-        self.lbl_conclusion.pack(side=tk.LEFT, padx=12)
-
-        btn_cerrar = tk.Button(
-            barra_inf,
-            text="CERRAR ARENA",
-            font=("Consolas", 8, "bold"),
-            bg=TEMA["panel"],
-            fg=TEMA["texto_secundario"],
-            activebackground=TEMA["neon_ambar"],
-            activeforeground=TEMA["fondo_general"],
-            relief=tk.FLAT,
-            command=self._al_cerrar
-        )
-        btn_cerrar.pack(side=tk.RIGHT, padx=12)
-
-    def _dibujar_cuadricula(self, canvas):
-        filas = len(self.matriz)
-        columnas = len(self.matriz[0])
-        tam_c = min(self.tam_canvas // columnas, self.tam_canvas // filas)
-        mx = (self.tam_canvas - (columnas * tam_c)) // 2
-        my = (self.tam_canvas - (filas * tam_c)) // 2
-
-        for f in range(filas):
-            for c in range(columnas):
-                x1 = mx + (c * tam_c)
-                y1 = my + (f * tam_c)
-                x2 = x1 + tam_c
-                y2 = y1 + tam_c
-
-                color = TEMA["pared_fondo"] if self.matriz[f][c] == 1 else TEMA["calle_fondo"]
-                borde = TEMA["pared_borde"] if self.matriz[f][c] == 1 else TEMA["calle_borde"]
-                canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline=borde, width=1)
-
-        for coord, color in [(self.inicio, TEMA["neon_verde"]), (self.meta, TEMA["neon_magenta"])]:
-            cx = mx + (coord[1] * tam_c) + (tam_c / 2)
-            cy = my + (coord[0] * tam_c) + (tam_c / 2)
-            r = max(2, tam_c * 0.35)
-            canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=color, outline="#FFFFFF", width=1)
-
-        return tam_c, mx, my
-
-    def _iniciar_simulacion(self):
-        self.tam_c, self.mx, self.my = self._dibujar_cuadricula(self.canvas_bfs)
-        self._dibujar_cuadricula(self.canvas_dfs)
-        self._dibujar_cuadricula(self.canvas_dijk)
-
-        self.idx_bfs = 0
-        self.idx_dfs = 0
-        self.idx_dijk = 0
-
-        self.llego_bfs = False
-        self.llego_dfs = False
-        self.llego_dijk = False
-
-        self._paso_simulacion()
-
-    def _centro(self, f, c):
-        return self.mx + (c * self.tam_c) + (self.tam_c / 2), self.my + (f * self.tam_c) + (self.tam_c / 2)
-
-    def _paso_simulacion(self):
-        activa = False
-
-        # 1. Paso BFS
-        if self.idx_bfs < len(self.res_bfs["orden_visita"]):
-            nodo = self.res_bfs["orden_visita"][self.idx_bfs]
-            padre = self.padres_bfs.get(nodo)
-            if padre:
-                x1, y1 = self._centro(padre[0], padre[1])
-                x2, y2 = self._centro(nodo[0], nodo[1])
-                self.canvas_bfs.create_line(x1, y1, x2, y2, width=2, fill=TEMA["neon_cian"], capstyle=tk.ROUND)
-                self.canvas_bfs.create_oval(x2 - 1, y2 - 1, x2 + 1, y2 + 1, fill="#FFFFFF", outline="")
-            self.idx_bfs += 1
-            self.lbl_tele_bfs.config(text=f"Celdas: {self.idx_bfs} | Pasos: --")
-            if nodo == self.meta and not self.llego_bfs:
-                self.llego_bfs = True
-                self.lbl_estado_bfs.config(text=f"✔ META en {self.idx_bfs} celdas", fg=TEMA["neon_verde"])
-            activa = True
-
-        # 2. Paso DFS
-        if self.idx_dfs < len(self.res_dfs["orden_visita"]):
-            nodo = self.res_dfs["orden_visita"][self.idx_dfs]
-            padre = self.padres_dfs.get(nodo)
-            if padre:
-                x1, y1 = self._centro(padre[0], padre[1])
-                x2, y2 = self._centro(nodo[0], nodo[1])
-                self.canvas_dfs.create_line(x1, y1, x2, y2, width=2, fill=TEMA["neon_magenta"], capstyle=tk.ROUND)
-                self.canvas_dfs.create_oval(x2 - 1, y2 - 1, x2 + 1, y2 + 1, fill="#FFFFFF", outline="")
-            self.idx_dfs += 1
-            self.lbl_tele_dfs.config(text=f"Celdas: {self.idx_dfs} | Pasos: --")
-            if nodo == self.meta and not self.llego_dfs:
-                self.llego_dfs = True
-                self.lbl_estado_dfs.config(text=f"✔ META en {self.idx_dfs} celdas", fg=TEMA["neon_verde"])
-            activa = True
-
-        # 3. Paso Dijkstra
-        if self.idx_dijk < len(self.res_dijk["orden_visita"]):
-            nodo = self.res_dijk["orden_visita"][self.idx_dijk]
-            padre = self.padres_dijk.get(nodo)
-            if padre:
-                x1, y1 = self._centro(padre[0], padre[1])
-                x2, y2 = self._centro(nodo[0], nodo[1])
-                self.canvas_dijk.create_line(x1, y1, x2, y2, width=2, fill=TEMA["neon_dijkstra"], capstyle=tk.ROUND)
-                self.canvas_dijk.create_oval(x2 - 1, y2 - 1, x2 + 1, y2 + 1, fill="#FFFFFF", outline="")
-            self.idx_dijk += 1
-            self.lbl_tele_dijk.config(text=f"Celdas: {self.idx_dijk} | Pasos: --")
-            if nodo == self.meta and not self.llego_dijk:
-                self.llego_dijk = True
-                self.lbl_estado_dijk.config(text=f"✔ META en {self.idx_dijk} celdas", fg=TEMA["neon_verde"])
-            activa = True
-
-        if activa:
-            self.timer_id = self.ventana.after(self.velocidad, self._paso_simulacion)
-        else:
-            self._finalizar_competencia()
-
-    def _finalizar_competencia(self):
-        # Trazar rutas finales en dorado
-        for c_canvas, camino in [
-            (self.canvas_bfs, self.res_bfs["camino"]),
-            (self.canvas_dfs, self.res_dfs["camino"]),
-            (self.canvas_dijk, self.res_dijk["camino"])
-        ]:
-            for k in range(len(camino) - 1):
-                x1, y1 = self._centro(camino[k][0], camino[k][1])
-                x2, y2 = self._centro(camino[k + 1][0], camino[k + 1][1])
-                c_canvas.create_line(x1, y1, x2, y2, width=4, fill=TEMA["neon_ambar"], capstyle=tk.ROUND)
-
-        self.lbl_tele_bfs.config(text=f"Celdas: {len(self.res_bfs['orden_visita'])} | RUTA: {self.res_bfs['pasos']} PASOS")
-        self.lbl_tele_dfs.config(text=f"Celdas: {len(self.res_dfs['orden_visita'])} | RUTA: {self.res_dfs['pasos']} PASOS")
-        self.lbl_tele_dijk.config(text=f"Celdas: {len(self.res_dijk['orden_visita'])} | RUTA: {self.res_dijk['pasos']} PASOS")
-
-        if not self.res_bfs["exito"]:
-            self.lbl_conclusion.config(
-                text="RESULTADO: El laberinto NO tiene solución. Los 3 algoritmos agotaron sus componentes conexas.",
-                fg="#FF1744"
-            )
-            return
-
-        # Podio de ruta más corta
-        min_pasos = min(self.res_bfs["pasos"], self.res_dfs["pasos"], self.res_dijk["pasos"])
-        ganadores_ruta = []
-        if self.res_bfs["pasos"] == min_pasos:
-            ganadores_ruta.append("BFS")
-        if self.res_dijk["pasos"] == min_pasos:
-            ganadores_ruta.append("DIJKSTRA")
-        if self.res_dfs["pasos"] == min_pasos:
-            ganadores_ruta.append("DFS")
-
-        # Podio de celdas exploradas
-        visitas = [
-            ("BFS", len(self.res_bfs["orden_visita"])),
-            ("DFS", len(self.res_dfs["orden_visita"])),
-            ("DIJKSTRA", len(self.res_dijk["orden_visita"]))
-        ]
-        visitas.sort(key=lambda x: x[1])
-        mas_rapido_expl = visitas[0]
-
-        txt_ganadores_ruta = " & ".join(ganadores_ruta)
-        dif_dfs = self.res_dfs["pasos"] - min_pasos
-
-        if dif_dfs > 0:
-            msg = (
-                f"🏆 PODIO // RUTA MÁS CORTA: {txt_ganadores_ruta} ({min_pasos} pasos — ahorraron {dif_dfs} pasos frente a DFS ({self.res_dfs['pasos']} pasos)).\n"
-                f"⚡ EXPLORACIÓN MÁS DIRECTA: {mas_rapido_expl[0]} visitó menos celdas ({mas_rapido_expl[1]}). "
-                f"[BFS: Cola FIFO O(V+E) | DIJKSTRA: Min-Heap O((V+E)log V) | DFS: Pila LIFO]"
-            )
-        else:
-            msg = (
-                f"🏆 PODIO // Los 3 algoritmos encontraron la misma ruta óptima ({min_pasos} pasos).\n"
-                f"⚡ EXPLORACIÓN MÁS DIRECTA: {mas_rapido_expl[0]} ({mas_rapido_expl[1]} celdas) frente a {visitas[1][0]} ({visitas[1][1]}) y {visitas[2][0]} ({visitas[2][1]})."
-            )
-
-        self.lbl_conclusion.config(text=msg, fg=TEMA["neon_ambar"])
-
-
-# Alias para mantener compatibilidad
-VentanaComparacion = VentanaCompetencia

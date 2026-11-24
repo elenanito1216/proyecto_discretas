@@ -85,7 +85,7 @@ def estimar_cuadricula_bloques(recortada_bin):
 def procesar_imagen_laberinto(ruta_imagen, tipo_manual=None, divisiones_manual=None):
     """
     Procesa la imagen, recorta márgenes y convierte a matriz de 0s y 1s.
-    Retorna diccionario con la matriz lista para BFS/DFS y visualización.
+    Retorna diccionario con la matriz lista para resolución y visualización.
     """
     img = cv2.imread(ruta_imagen)
     if img is None:

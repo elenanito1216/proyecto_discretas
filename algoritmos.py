@@ -1,24 +1,14 @@
 """
 algoritmos.py
 -------------
-Módulo con las implementaciones de los tres algoritmos clásicos de búsqueda sobre grafos:
-1. BFS (Breadth-First Search / Búsqueda en Anchura):
-   - Utiliza una COLA (FIFO - primero en entrar, primero en salir).
-   - Explora por "niveles" concéntricos alrededor del punto de partida.
-   - GARANTIZA encontrar el camino más corto en grafos sin pesos.
+Módulo con la implementación del algoritmo de búsqueda sobre grafos:
+DIJKSTRA (Camino de Costo Mínimo):
+- Utiliza una COLA DE PRIORIDAD (Min-Heap / Montículo de Mínimos con heapq).
+- En este laberinto, cada movimiento entre celdas libres adyacentes tiene un costo uniforme de 1.
+- GARANTIZA encontrar el camino de menor costo (óptimo / distancia más corta), expandiendo
+  siempre el nodo con la menor distancia acumulada conocida.
 
-2. DFS (Depth-First Search / Búsqueda en Profundidad):
-   - Utiliza una PILA (LIFO - último en entrar, primero en salir).
-   - Avanza por una rama hasta topar con pared y luego retrocede (backtracking).
-   - NO garantiza el camino más corto, pero suele encontrar soluciones con patrones exploratorios.
-
-3. DIJKSTRA (Camino de Costo Mínimo):
-   - Utiliza una COLA DE PRIORIDAD (Min-Heap / Montículo de Mínimos con heapq).
-   - En este laberinto, cada paso entre celdas vecinas tiene costo uniforme 1.
-   - GARANTIZA encontrar el camino de menor costo (óptimo igual que BFS), expandiendo
-     siempre el nodo con la menor distancia acumulada conocida.
-
-Todos los algoritmos retornan:
+Retorna:
 - exito (bool): Si se llegó o no a la meta.
 - camino (list): Lista de coordenadas (fila, col) desde el inicio hasta la meta.
 - pasos (int): Cantidad de pasos del camino (aristas recorridas = longitud - 1).
@@ -26,14 +16,13 @@ Todos los algoritmos retornan:
 - orden_visita (list): Orden exacto en que se fueron explorando las celdas (para la animación).
 """
 
-from collections import deque
 import heapq
 
 
 def reconstruir_camino(padres, inicio, meta):
     """
     Función auxiliar para reconstruir el camino desde la meta hacia el inicio,
-    siguiendo el diccionario de 'padres' que guardó cada algoritmo.
+    siguiendo el diccionario de 'padres' que guardó el algoritmo.
     Retorna la lista de coordenadas en orden desde inicio hasta meta.
     """
     camino = []
@@ -52,146 +41,6 @@ def reconstruir_camino(padres, inicio, meta):
     return []
 
 
-def bfs(grafo, inicio, meta):
-    """
-    Búsqueda en Anchura (BFS).
-    Explora nivel por nivel usando una cola FIFO.
-    """
-    # Si el inicio o la meta no están en el grafo (por ejemplo, están en una pared o grafo vacío)
-    if inicio not in grafo or meta not in grafo:
-        return {
-            "exito": False,
-            "camino": [],
-            "pasos": 0,
-            "total_visitados": 0,
-            "orden_visita": []
-        }
-
-    # Caso trivial: el inicio ya es la meta
-    if inicio == meta:
-        return {
-            "exito": True,
-            "camino": [inicio],
-            "pasos": 0,
-            "total_visitados": 1,
-            "orden_visita": [inicio]
-        }
-
-    # Usamos deque de collections porque popleft() es O(1) a diferencia de una lista normal
-    cola = deque([inicio])
-    visitados = {inicio}
-    orden_visita = [inicio]
-
-    # Diccionario de padres: padres[hijo] = nodo_desde_el_que_llegamos
-    # Nos servirá al final para rastrear el camino de regreso
-    padres = {inicio: None}
-
-    meta_encontrada = False
-
-    while cola:
-        actual = cola.popleft()
-
-        # Si llegamos a la meta, detenemos la búsqueda
-        if actual == meta:
-            meta_encontrada = True
-            break
-
-        # Revisamos todos los vecinos conectados en el grafo
-        for vecino in grafo.get(actual, []):
-            if vecino not in visitados:
-                visitados.add(vecino)
-                orden_visita.append(vecino)
-                padres[vecino] = actual
-                cola.append(vecino)
-
-    if meta_encontrada:
-        camino = reconstruir_camino(padres, inicio, meta)
-        pasos = len(camino) - 1
-        return {
-            "exito": True,
-            "camino": camino,
-            "pasos": pasos,
-            "total_visitados": len(visitados),
-            "orden_visita": orden_visita
-        }
-    else:
-        # No se encontró camino (laberinto sin solución)
-        return {
-            "exito": False,
-            "camino": [],
-            "pasos": 0,
-            "total_visitados": len(visitados),
-            "orden_visita": orden_visita
-        }
-
-
-def dfs(grafo, inicio, meta):
-    """
-    Búsqueda en Profundidad (DFS).
-    Explora profundamente cada rama usando una pila LIFO (implementada con una lista y pop()).
-    """
-    if inicio not in grafo or meta not in grafo:
-        return {
-            "exito": False,
-            "camino": [],
-            "pasos": 0,
-            "total_visitados": 0,
-            "orden_visita": []
-        }
-
-    if inicio == meta:
-        return {
-            "exito": True,
-            "camino": [inicio],
-            "pasos": 0,
-            "total_visitados": 1,
-            "orden_visita": [inicio]
-        }
-
-    # En DFS usamos una pila (LIFO). En Python, list.append() y list.pop() funcionan como pila.
-    pila = [inicio]
-    visitados = {inicio}
-    orden_visita = [inicio]
-    padres = {inicio: None}
-
-    meta_encontrada = False
-
-    while pila:
-        actual = pila.pop()
-
-        if actual == meta:
-            meta_encontrada = True
-            break
-
-        # Para un comportamiento visual intuitivo en cuadrícula, invertimos los vecinos al meterlos a la pila,
-        # así el primer vecino evaluado será el primero de la lista original.
-        for vecino in reversed(grafo.get(actual, [])):
-            if vecino not in visitados:
-                visitados.add(vecino)
-                orden_visita.append(vecino)
-                padres[vecino] = actual
-                pila.append(vecino)
-
-    if meta_encontrada:
-        camino = reconstruir_camino(padres, inicio, meta)
-        pasos = len(camino) - 1
-        return {
-            "exito": True,
-            "camino": camino,
-            "pasos": pasos,
-            "total_visitados": len(visitados),
-            "orden_visita": orden_visita
-        }
-    else:
-        return {
-            "exito": False,
-            "camino": [],
-            "pasos": 0,
-            "total_visitados": len(visitados),
-            "orden_visita": orden_visita
-        }
-
-
 def dijkstra(grafo, inicio, meta):
     """
     Algoritmo de Dijkstra para caminos de costo mínimo.
@@ -199,9 +48,8 @@ def dijkstra(grafo, inicio, meta):
     ¿Cómo funciona en este laberinto?
     - Cada movimiento entre celdas vecinas tiene costo = 1 (grafo no ponderado con costo uniforme).
     - Mantiene una cola de prioridad (min-heap) que extrae siempre el nodo con menor distancia acumulada.
-    - Garantiza encontrar el camino más corto (óptimo), al igual que BFS.
-    - La diferencia teórica clave: BFS usa una cola simple FIFO O(V + E), mientras que Dijkstra
-      usa un montículo de mínimos O((V + E) log V).
+    - Garantiza encontrar el camino más corto (óptimo).
+    - Complejidad: O((V + E) log V) gracias al uso del montículo de mínimos.
     """
     if inicio not in grafo or meta not in grafo:
         return {
@@ -249,7 +97,7 @@ def dijkstra(grafo, inicio, meta):
             meta_encontrada = True
             break
 
-        # Exploramos vecinos
+        # Exploramos vecinos en el grafo
         for vecino in grafo.get(actual, []):
             if vecino not in visitados:
                 nueva_dist = dist_actual + 1  # Costo 1 por celda en la cuadrícula

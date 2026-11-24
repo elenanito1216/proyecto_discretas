@@ -3,7 +3,7 @@ laberinto.py
 ------------
 Módulo encargado de:
 1. Cargar el laberinto desde un archivo de texto.
-2. Generar laberintos aleatorios usando DFS con Backtracking (Árbol Generador).
+2. Generar laberintos aleatorios usando Backtracking recursivo (Árbol Generador).
 3. Validar que las coordenadas de inicio y meta sean válidas.
 4. Convertir la matriz de ceros y unos en un grafo representado con listas de adyacencia.
 """
@@ -13,7 +13,7 @@ import random
 
 def generar_laberinto_aleatorio(filas=29, columnas=29, caminos_alternativos=True):
     """
-    Genera un laberinto aleatorio utilizando el algoritmo de DFS con Backtracking.
+    Genera un laberinto aleatorio utilizando un algoritmo de Backtracking.
     
     Fundamento teórico para la materia:
     El laberinto se genera tallando un ÁRBOL GENERADOR (Spanning Tree) sobre una cuadrícula
@@ -21,8 +21,7 @@ def generar_laberinto_aleatorio(filas=29, columnas=29, caminos_alternativos=True
     - Empieza en una celda (1, 1).
     - Salta de a 2 casillas en una dirección aleatoria y tumba la pared intermedia.
     - Cuando llega a un callejón sin salida, retrocede (backtracking) usando una pila.
-    - Al final, opcionalmente derriba paredes aleatorias para crear bifurcaciones
-      y ciclos, permitiendo comparar cómo BFS encuentra el atajo mientras DFS toma el desvío.
+    - Al final, opcionalmente derriba paredes aleatorias para crear bifurcaciones y ciclos.
     """
     # Forzamos dimensiones impares para que haya paredes perimetrales y pasillos alineados
     if filas % 2 == 0:
@@ -72,7 +71,6 @@ def generar_laberinto_aleatorio(filas=29, columnas=29, caminos_alternativos=True
             pila.pop()
 
     # Opcional: derribar algunas paredes internas para crear bifurcaciones y ciclos
-    # Esto hace más interesante la comparación entre BFS y DFS
     if caminos_alternativos:
         paredes_internas = []
         for f in range(2, filas - 2):
